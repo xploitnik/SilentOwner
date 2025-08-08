@@ -1,0 +1,41 @@
+# Ignore Python cache files
+__pycache__/
+*.py[cod]
+
+# Ignore editor/OS metadata
+.DS_Store
+*.swp
+
+# Virtual environment folders
+venv/
+.env/
+.certipy-acl-env/
+
+# Backup files
+*.bak
+*.orig
+
+# Output or debug files
+*.log
+*.out
+*.tmp
+
+# Secrets or creds (just in case)
+secrets.txt
+*.pfx
+*.key
+
+# Ignore LDIF/enum dumps
+*.ldif
+*.json
+*.bin
+
+# VSCode or PyCharm
+.vscode/
+.idea/
+
+# Ignore future inject_ace scripts if separate
+inject_*.py
+
+# Requirements freeze (generated later, not checked in)
+requirements_freeze.txt
