@@ -1,24 +1,44 @@
-# 🛡️ SilentOwner
+# 🛡️ SilentOwner — Replace LDAP OwnerSID via WriteOwner without touching ACEs  
+🧬 Built for post-exploitation, stealth privilege escalation, and AD persistence
 
-SilentOwner is a stealthy LDAP post-exploitation tool that lets you **change the OwnerSID** of any Active Directory object — such as a user or group — when your account holds **WriteOwner** permissions.
+**SilentOwner** is a stealthy LDAP post-exploitation tool that lets you **change the OwnerSID** of any Active Directory object — such as a user or group — when your account holds **WriteOwner** permissions.
 
-It operates entirely over LDAP using the correct `SDFlags` control to modify the `nTSecurityDescriptor` attribute. This allows you to **silently assume ownership** of LDAP objects, gain **implicit control**, and prepare **privilege escalation paths** — all without needing a shell or triggering common alerts.
+It operates entirely over LDAP using the correct `SDFlags` control to modify the `nTSecurityDescriptor` attribute.  
+This enables you to **silently assume ownership**, gain **implicit control**, and prepare **privilege escalation paths** — without needing a shell or triggering alerts.
 
 ---
 
 ## 🔧 Requirements
 
 - Python 3.10+
-- `ldap3`
-- `impacket`
+- [`ldap3`](https://pypi.org/project/ldap3/)
+- [`impacket`](https://github.com/SecureAuthCorp/impacket)
+
+Install with:
 
 ```bash
-pip install ldap3 impacket
+pip install -r requirements.txt
 ```
 
 ---
 
-## 🚀 Usage
+## 🚀 Basic Syntax
+
+```bash
+python3 SilentOwner.py \
+  --dc-ip <DC_IP> \
+  -u <USERNAME> \
+  -p '<PASSWORD>' \
+  --domain <DOMAIN> \
+  --target-dn '<DISTINGUISHED_NAME>' \
+  --new-owner-sid '<NEW_OWNER_SID>'
+```
+
+- `--target-dn`: Full DN of the target object (e.g., group, user)  
+- `--new-owner-sid`: SID to assign as new owner (usually your own)
+
+<details>
+<summary>📦 Certified (HTB)<Windows>
 
 ```bash
 python3 SilentOwner.py \
@@ -29,104 +49,64 @@ python3 SilentOwner.py \
   --target-dn 'CN=Management,CN=Users,DC=certified,DC=htb' \
   --new-owner-sid 'S-1-5-21-729746778-2675978091-3820388244-1103'
 ```
+</details>
 
 ---
 
-## 📄 Example Output
+## 📤 Example Output
 
-```
-🛡️ SilentOwner — Replace LDAP OwnerSID via WriteOwner without touching ACEs
-🧬 Built for post-exploitation, stealth privilege escalation, and AD persistence.
-
-🛡️  SilentOwner is live — scanning for target object ownership...
+```text
+🛡️ SilentOwner is live — scanning for target object ownership...
 
 [+] LDAP bind successful.
-[DEBUG] Raw sd['OwnerSid']: b''
-[!] Owner SID is empty or not set. Proceeding to set a new owner.
+[DEBUG] Raw sd['OwnerSid']: b'\x01\x00\x00...'
+[+] Current owner: S-1-5-21-729746778-2675978091-3820388244-1104
 [+] Replacing owner with: S-1-5-21-729746778-2675978091-3820388244-1103
 [✅] Ownership of CN=Management,CN=Users,DC=certified,DC=htb successfully changed
 ```
 
 ---
 
-## 📸 SilentOwner in action
+## 🧩 Usage Strategy
 
-<img width="2632" height="868" alt="image" src="https://github.com/user-attachments/assets/f12894c2-8a83-4c65-9acc-cf11e1a1a835" />
+SilentOwner is most effective when combined with tools like:
 
+### 🔍 Certipy-ACL
+- Use `certipy acl` to discover objects where your user has **WriteOwner**
+- Filter by your own SID to isolate takeover targets
 
----
+### 🧠 SID Mapping
+- Extract SIDs from LDAP using `ldapsearch` or custom tools
+- Use your user SID as the new owner in takeover
 
-## ⚙️ Arguments
+### ⚙️ Post-Takeover
+- After becoming owner, you can inject ACEs (e.g., `GenericAll`, `WriteDACL`) using other tools
+- Consider persistence strategies that don’t trigger alerts
 
-| Flag              | Description                                       |
-|-------------------|---------------------------------------------------|
-| `--dc-ip`         | IP address of the Domain Controller               |
-| `-u, --username`  | LDAP bind username (e.g., `user@domain.local`)    |
-| `-p, --password`  | Password for the bind account                     |
-| `--domain`        | AD domain name (e.g., `certified.htb`)            |
-| `--target-dn`     | Distinguished Name of the object to take over     |
-| `--new-owner-sid` | SID to set as the new owner                       |
-
----
-
-## 🔗 Related Tool: Certipy-ACL
-
-If you're looking for **WriteOwner**, **GenericWrite**, or **WriteDACL** paths to begin with, check out [Certipy-ACL](https://github.com/your-repo/certipy-acl) — a stealth LDAP ACL enumerator that highlights **effective permissions** using **SID-based analysis**.
-
-Once you identify an object you can take over, use **SilentOwner** to quietly assume ownership and escalate your control — all without a shell.
+🧬 *SilentOwner is for the stealthy step — not for noisy privilege assignments. Combine it with follow-up tools.*
 
 ---
 
-## 🧩 Recommended Workflow
+## ⚠️ Warning
 
-1. 🕵️ Enumerate effective permissions using **certipy-acl**
-2. 👑 Take ownership with **SilentOwner**
-3. 🛠️ *(Optional)* Inject ACEs or silently add yourself to groups
+Replacing the OwnerSID of LDAP objects is a powerful action.  
+Done incorrectly, it can:
 
----
+- Break delegation chains
+- Affect replication metadata
+- Leave subtle traces for defenders
 
-## 🛡️ Use Cases
-
-- Escalating privileges in AD environments with delegated rights
-- Taking control of groups, service accounts, or user objects
-- Preparing post-exploitation paths without triggering logs
-- Maintaining stealth persistence via DACL abuse
+Always test in a lab before using in real-world scenarios.
 
 ---
 
-## 💡 Why This Tool Exists
+## 📄 License
 
-Most privilege escalation tools — like **BloodHound**, **BloodyAD**, or **PowerView** — are built for discovery. They scan the domain, enumerate permissions, and highlight potential abuse paths.
+MIT License
 
-**SilentOwner is different.**
+SilentOwner is based on live LDAP modification techniques, using `ldap3` and `impacket` to operate without touching ACEs.  
+Authored with ❤️ by [xploitnik](https://github.com/xploitnik).
 
-It’s designed for operators who already know **which object they control — specifically via WriteOwner** — and want to **silently take over that object** without scanning, without a shell, and without noise.
-
-This tool picks up *after* discovery — when you're working with SIDs directly and need **surgical control** over LDAP objects for escalation or persistence.
-
----
-
-## 🧯 Troubleshooting
-
-| Error                        | Explanation                                                                 |
-|-----------------------------|-----------------------------------------------------------------------------|
-| ❌ `insufficientAccessRights` | You likely have WriteOwner but forgot the SDFlags=0x01 control.             |
-| ❌ `b''` or empty OwnerSID   | Some objects don’t have an explicit owner set — SilentOwner sets it safely. |
-| ❌ No effect?                | Double-check your `--new-owner-sid` is valid (e.g., `S-1-5-21-...`)         |
-
----
-
-## 🛠️ Next Step
-
-Want to take it further?
-
-Once you've taken ownership, you can **inject ACEs** to assign yourself `GenericWrite`, `WriteMember`, or `GenericAll` — all remotely, all silently.
-
-A **companion script** — `inject_ace.py` — is coming soon to expand your control over the target object.
-
----
-
-> 🧬 Built to empower SIDs — and the people who know how to use them.
 
 
 
