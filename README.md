@@ -66,5 +66,27 @@ Once you identify an object you can take over, use **SilentOwner** to quietly as
 
 ---
 
+---
+
+🧭 Why This Tool Exists
+Most privilege escalation tools (like BloodHound, BloodyAD, or PowerView) are designed for discovery — they scan the domain, enumerate permissions, and identify abuse paths.
+
+SilentOwner is different.
+It’s built for operators who already know what object they can control — specifically via WriteOwner — and want to silently take over that object without scanning, without a shell, and without noise.
+
+This tool is ideal when:
+
+You've already identified effective permissions using SID-based ACL analysis
+
+You're working from a low-privileged context using LDAP only
+
+You want to take ownership quietly and prepare for privilege escalation or persistence
+
+If you don't yet know which objects you have WriteOwner over, use a discovery tool like Certipy-ACL to enumerate effective control paths based on SIDs.
+
+SilentOwner picks up where discovery ends — and surgical control begins.
+
+---
+
 > _Built to empower SIDs — and the people who know how to use them._
 
