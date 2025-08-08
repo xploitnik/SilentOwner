@@ -32,12 +32,28 @@ python3 replace_owner.py \
 
 ---
 
-## 🎯 What This Tool Does
+## 📄 Example Output
 
-- 🧠 Replaces the `OwnerSID` of any LDAP object you have **`WriteOwner`** rights over
-- 🔐 Grants you implicit `WriteDACL` and `ReadControl` (even if ACEs don’t say so)
-- 📡 Works entirely over LDAP — no shell required
-- 🔕 Does not generate group change logs or certificate logs
+```
+[+] LDAP bind successful.
+[DEBUG] Raw sd['OwnerSid']: b''
+[!] Owner SID is empty or not set. Proceeding to set a new owner.
+[+] Replacing owner with: S-1-5-21-729746778-2675978091-3820388244-1103
+[✅] Ownership of CN=Management,CN=Users,DC=certified,DC=htb successfully changed
+```
+
+---
+
+## ⚙️ Arguments
+
+| Flag              | Description                                      |
+|-------------------|--------------------------------------------------|
+| `--dc-ip`         | IP address of the domain controller              |
+| `-u, --username`  | LDAP bind username (e.g., `user@domain.local`)   |
+| `-p, --password`  | LDAP password                                    |
+| `--domain`        | Domain name (e.g., `certified.htb`)              |
+| `--target-dn`     | Distinguished Name of the object to take over    |
+| `--new-owner-sid` | SID to set as the new owner                      |
 
 ---
 
@@ -51,42 +67,53 @@ Once you identify an object you can take over, use **SilentOwner** to quietly as
 
 ## 🧩 Recommended Workflow
 
-1. 🕵️ Enumerate effective permissions using `certipy-acl`
-2. 👑 Take ownership with `SilentOwner`
-3. 🛠️ (Optional) Inject ACEs or silently add yourself to groups
+1. 🕵️ Enumerate effective permissions using `certipy-acl`  
+2. 👑 Take ownership with `SilentOwner`  
+3. 🛠️ (Optional) Inject ACEs or silently add yourself to groups  
 
 ---
 
 ## 🛡️ Use Cases
 
-- Escalating privileges in AD environments with delegated rights
-- Taking control of groups, service accounts, or user objects
-- Preparing post-exploitation paths without triggering logs
-- Maintaining stealth persistence via DACL abuse
+- Escalating privileges in AD environments with delegated rights  
+- Taking control of groups, service accounts, or user objects  
+- Preparing post-exploitation paths without triggering logs  
+- Maintaining stealth persistence via DACL abuse  
 
 ---
 
+## 💡 Why This Tool Exists
+
+Most privilege escalation tools — like **BloodHound**, **BloodyAD**, or **PowerView** — are built for **discovery**. They scan the domain, enumerate permissions, and highlight potential abuse paths.
+
+**SilentOwner is different.**  
+It’s designed for operators who already know which object they control — specifically via `WriteOwner` — and want to silently take over that object **without scanning, without a shell, and without noise**.
+
+This tool picks up **after discovery** — when you're working with SIDs directly and need surgical control over LDAP objects for escalation or persistence.
+
 ---
 
-🧭 Why This Tool Exists
-Most privilege escalation tools (like BloodHound, BloodyAD, or PowerView) are designed for discovery — they scan the domain, enumerate permissions, and identify abuse paths.
+## 🧯 Troubleshooting
 
-SilentOwner is different.
-It’s built for operators who already know what object they can control — specifically via WriteOwner — and want to silently take over that object without scanning, without a shell, and without noise.
+- ❌ `insufficientAccessRights`  
+  → You likely have `WriteOwner` but forgot the `SDFlags=0x01` control. SilentOwner handles this automatically — make sure you’re using it.
 
-This tool is ideal when:
+- ❌ `b''` or empty `OwnerSID`  
+  → Some objects don’t have an explicit owner set. This is normal. SilentOwner sets a valid one for you.
 
-You've already identified effective permissions using SID-based ACL analysis
+- ❌ No effect?  
+  → Double-check your `--new-owner-sid` is valid and formatted like: `S-1-5-21-...`.
 
-You're working from a low-privileged context using LDAP only
+---
 
-You want to take ownership quietly and prepare for privilege escalation or persistence
+## 🛠️ Next Step
 
-If you don't yet know which objects you have WriteOwner over, use a discovery tool like Certipy-ACL to enumerate effective control paths based on SIDs.
+Want to take it further? Once you've taken ownership, you can inject ACEs to assign yourself `GenericWrite`, `WriteMember`, or `GenericAll` — all remotely, all silently.
 
-SilentOwner picks up where discovery ends — and surgical control begins.
+A companion script — `inject_ace.py` — is coming soon to expand your control over the target object.
 
 ---
 
 > _Built to empower SIDs — and the people who know how to use them._
+
 
